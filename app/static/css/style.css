@@ -1,0 +1,5 @@
+body { background: #f8f9fa; }
+.navbar-brand i { color: #0d6efd; }
+.card-title i { margin-right: 0.5em; }
+.table th, .table td { vertical-align: middle; }
+.truck-marker i { text-shadow: 0 0 2px #fff; }
