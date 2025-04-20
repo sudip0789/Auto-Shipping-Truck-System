@@ -24,7 +24,7 @@ A comprehensive web-based platform for managing autonomous shipping trucks, incl
 Instructions for setting up the project locally and deploying to AWS:
 
 1. Clone this repository
-2. Install requirements: `pip install -r requirements.txt`
+2. Install requirements: `pip3 install -r requirements.txt`
 3. Configure AWS credentials
 4. Run Backend locally: `python3 app.py`
 5. Run Frontend locally: `cd frontend && npm install && npm run start`
