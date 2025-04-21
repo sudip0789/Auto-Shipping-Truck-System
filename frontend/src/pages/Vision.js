@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import { Spinner, Alert } from 'react-bootstrap';
-
+console.log("Vision rendered");
 const Vision = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,32 +13,50 @@ const Vision = () => {
   const [detections, setDetections] = useState([]);
   const scrollRef = useRef(null);
 
+  const intervalRef = useRef(null);
+
   useEffect(() => {
+    console.log("Vision mounted");
+    // fetchVisionData();
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
     fetchVisionData();
-    const interval = setInterval(fetchVisionData, 10000);
-    return () => clearInterval(interval);
+
+    // intervalRef.current = setInterval(() => {
+    //   console.log("Interval firing");
+    //   fetchVisionData();
+    // }, 10000);
+
+    return () => {
+      console.log("Cleaning up Vision");
+      clearInterval(intervalRef.current);
+    };
   }, []);
+
 
   const fetchVisionData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all detections
       const detectionsResponse = await api.get('/detections');
       const detectionItems = detectionsResponse.data || [];
-  
+
       // Compute totals dynamically from all records
       let vehicles = 0;
       let pedestrians = 0;
       let traffic_signals = 0;
-  
+
       detectionItems.forEach(det => {
         vehicles += Number(det.num_car) || 0;
         pedestrians += Number(det.num_person) || 0;
         // Add your own logic if you separate traffic_light vs. traffic_sign
-        traffic_signals += Number(det.num_traffic_signals) || 0;
+        traffic_signals += Number(det.num_traffic_lights) || 0;
       });
-  
+
       // Set state
       setDetectionStats({ vehicles, pedestrians, traffic_signals });
       setDetections(detectionItems);
@@ -49,7 +67,7 @@ const Vision = () => {
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   const scrollLeft = () => {
     scrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' });
@@ -114,7 +132,7 @@ const Vision = () => {
               {detections.map((det, i) => (
                 <div key={i} className="card" style={{ minWidth: '250px' }}>
                   <img
-                    src={`http://localhost:5000/static/temp_output/${det.image_name}`}
+                    src={`http://localhost:5000/static/output/${det.image_name}`}
                     className="card-img-top"
                     alt={det.image_name}
                     style={{ height: '160px', objectFit: 'cover' }}

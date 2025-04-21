@@ -238,7 +238,7 @@ def get_recent_detections(limit=10):
     """
     # In a real implementation, this would query DynamoDB for recent detections
     # For now, return a placeholder
-    #process_vision_images()
+    process_vision_images()
     detections_table = current_app.config.get('DYNAMODB_DETECTIONS_TABLE')
 
     if not detections_table:
@@ -255,13 +255,6 @@ def get_recent_detections(limit=10):
         logging.error(f"Error fetching all detections: {e}")
         return []
 
-    # return [{
-    #     'detection_id': f"detection-{i}",
-    #     'timestamp': int(time.time()) - i * 60,  # One minute apart
-    #     'truck_id': f"truck-{i % 5}",
-    #     'is_emergency': i % 3 == 0,  # Every third detection is an emergency
-    #     'image_url': f"https://example.com/vision/detection-{i}.jpg"
-    # } for i in range(limit)]
 
 def process_vision_images(
     dynamo_table_name='ast-detections',
@@ -273,12 +266,16 @@ def process_vision_images(
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # points to 'app/' level
     image_dir = os.path.join(BASE_DIR, 'static', 'images')
     #temp_output_dir = os.path.join(BASE_DIR, 'static', 'temp_output')
-    temp_output_dir = os.path.join(BASE_DIR, 'static', 'temp_output')
+    temp_output_dir = os.path.join(BASE_DIR, 'static', 'output')
+    
     os.makedirs(temp_output_dir, exist_ok=True)
 
     # === YOLO setup ===
     model = YOLO('yolov8n.pt')
     COCO_CLASSES = model.model.names
+
+    print("cc" )
+    print(COCO_CLASSES)
 
     # === AWS setup ===
     dynamodb = boto3.resource('dynamodb', region_name=region)
@@ -290,32 +287,32 @@ def process_vision_images(
         if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             img_path = os.path.join(image_dir, filename)
 
-            # Run YOLO
-            results = model(img_path)
+            try:
+                # Run YOLO
+                results = model(img_path)
 
-            # Annotate and save to temp file
-            annotated_img = results[0].plot()
-            temp_path = os.path.join(temp_output_dir, filename)
-            print("Saving to:", temp_path)
-            cv2.imwrite(temp_path, annotated_img)
+                # Plot returns RGB array, convert it to BGR
+                annotated_img_rgb = results[0].plot()
+                annotated_img_bgr = cv2.cvtColor(annotated_img_rgb, cv2.COLOR_RGB2BGR)
 
-            # Upload to S3
-            # s3_key = f'{s3_output_prefix}{filename}'
-            # s3.upload_file(
-            #     temp_path,
-            #     s3_bucket,
-            #     s3_key,
-            #     ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/jpeg'}
-            # )
+                # Save
+                temp_path = os.path.join(temp_output_dir, filename)
 
-            #image_url = f'https://{s3_bucket}.s3.{region}.amazonaws.com/{s3_key}'
+                cv2.imwrite(temp_path, annotated_img_bgr)
 
+            except Exception as e:
+                print(f"❌ Error processing {filename}: {e}")
+
+            
             image_url = filename
 
             # Count detections
             class_ids = results[0].boxes.cls.tolist()
             class_names = [COCO_CLASSES[int(cls)] for cls in class_ids]
             count = Counter(class_names)
+
+            print("img........................",class_names )
+            #print(COCO_CLASSES)
 
             # Compose item
             item = {
@@ -324,14 +321,10 @@ def process_vision_images(
                 'output_image_url': image_url,
                 'num_person': count.get('person', 0),
                 'num_car': count.get('car', 0),
+                'num_traffic_lights': count.get('traffic light', 0),
                 'num_accidents': count.get('fire', 0) + count.get('truck', 0),
                 'timestamp': datetime.utcnow().isoformat() + 'Z'
             }
 
             # Save to DynamoDB
             table.put_item(Item=item)
-
-            # Cleanup (optional)
-            os.remove(temp_path)
-
-            print(f"✅ Processed and uploaded: {filename}")
