@@ -100,6 +100,50 @@ def create_users_table(dynamodb):
     return table
 
 
+# def create_trucks_table(dynamodb):
+#     """Create the trucks table"""
+#     table = create_table(
+#         dynamodb,
+#         DYNAMODB_TRUCKS_TABLE,
+#         key_schema=[{'AttributeName': 'truck_id', 'KeyType': 'HASH'}],
+#         attribute_definitions=[
+#             {'AttributeName': 'truck_id', 'AttributeType': 'S'}]
+#     )
+
+#     # Add sample trucks
+#     sample_trucks = [
+#         {
+#             'truck_id': f"truck-{uuid.uuid4()}",
+#             'truck_name': 'Alpha Hauler',
+#             'truck_model': 'Tesla Semi',
+#             'manufacture_year': 2023,
+#             'status': 'active'
+#         },
+#         {
+#             'truck_id': f"truck-{uuid.uuid4()}",
+#             'truck_name': 'Beta Transporter',
+#             'truck_model': 'Volvo VNR Electric',
+#             'manufacture_year': 2022,
+#             'status': 'maintenance'
+#         },
+#         {
+#             'truck_id': f"truck-{uuid.uuid4()}",
+#             'truck_name': 'Gamma Freighter',
+#             'truck_model': 'Freightliner eCascadia',
+#             'manufacture_year': 2023,
+#             'status': 'idle'
+#         }
+#     ]
+
+#     for truck in sample_trucks:
+#         try:
+#             table.put_item(Item=truck)
+#             print(f"Added truck: {truck['truck_name']}")
+#         except Exception as e:
+#             print(f"Error adding truck {truck['truck_name']}: {str(e)}")
+
+#     return table
+
 def create_trucks_table(dynamodb):
     """Create the trucks table"""
     table = create_table(
@@ -110,28 +154,62 @@ def create_trucks_table(dynamodb):
             {'AttributeName': 'truck_id', 'AttributeType': 'S'}]
     )
 
-    # Add sample trucks
+    # Add sample trucks with telemetry data matching frontend expectations
+    current_timestamp = int(time.time())
     sample_trucks = [
         {
             'truck_id': f"truck-{uuid.uuid4()}",
             'truck_name': 'Alpha Hauler',
             'truck_model': 'Tesla Semi',
             'manufacture_year': 2023,
-            'status': 'active'
+            'status': 'active',
+            # Telemetry data - matched with frontend variable names
+            'latitude': Decimal(str(37.7749)),  # Convert to Decimal
+            'longitude': Decimal(str(-122.4194)),  # Convert to Decimal
+            'speed': 65,  # Integer is fine
+            'battery_level': 82,
+            'fuel_level': 78,
+            'engine_temperature': 92,
+            'timestamp': current_timestamp,
+            'sensors': ['camera', 'lidar', 'radar', 'ultrasonic'],
+            'created_at': current_timestamp,
+            'last_updated': current_timestamp
         },
         {
             'truck_id': f"truck-{uuid.uuid4()}",
             'truck_name': 'Beta Transporter',
             'truck_model': 'Volvo VNR Electric',
             'manufacture_year': 2022,
-            'status': 'maintenance'
+            'status': 'maintenance',
+            # Telemetry data
+            'latitude': Decimal(str(34.0522)),
+            'longitude': Decimal(str(-118.2437)),
+            'speed': 0,
+            'battery_level': 35,
+            'fuel_level': 45,
+            'engine_temperature': 80,
+            'timestamp': current_timestamp,
+            'sensors': ['camera', 'proximity', 'gps'],
+            'created_at': current_timestamp,
+            'last_updated': current_timestamp
         },
         {
             'truck_id': f"truck-{uuid.uuid4()}",
             'truck_name': 'Gamma Freighter',
             'truck_model': 'Freightliner eCascadia',
             'manufacture_year': 2023,
-            'status': 'idle'
+            'status': 'idle',
+            # Telemetry data
+            'latitude': Decimal(str(47.6062)),
+            'longitude': Decimal(str(-122.3321)),
+            'speed': 0,
+            'battery_level': 98,
+            'fuel_level': 92,
+            'engine_temperature': 70,
+            'timestamp': current_timestamp,
+            'sensors': ['camera', 'lidar', 'thermal', 'pressure'],
+            'created_at': current_timestamp,
+            'last_updated': current_timestamp
         }
     ]
 
