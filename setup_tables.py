@@ -16,14 +16,15 @@ load_dotenv()
 
 # AWS Configuration
 AWS_REGION = 'us-east-2'
-AWS_ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY', 'your-access-key')
-AWS_SECRET_KEY = os.environ.get('AWS_SECRET_KEY', 'your-secret-key')
+AWS_ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY', 'AKIAQQABDUVERYN7SE7B')
+AWS_SECRET_KEY = os.environ.get('AWS_SECRET_KEY', 'xSRpxVgYTUQGwfptT8rrLZ0W8htPl3vHu365jt9R')
 
 # Table names
 DYNAMODB_USERS_TABLE = 'ast-users'
 DYNAMODB_TRUCKS_TABLE = 'ast-trucks'
 DYNAMODB_ALERTS_TABLE = 'ast-alerts'
 DYNAMODB_ROUTES_TABLE = 'ast-routes'
+DYNAMODB_DETECTIONS_TABLE = 'ast-detections'
 
 def create_dynamodb_client():
     """Create and return a DynamoDB client"""
@@ -229,6 +230,17 @@ def create_routes_table(dynamodb):
     
     return table
 
+def create_detections_table(dynamodb):
+    """Create the detections table"""
+    table = create_table(
+        dynamodb,
+        DYNAMODB_DETECTIONS_TABLE,
+        key_schema=[{'AttributeName': 'image_id', 'KeyType': 'HASH'}],
+        attribute_definitions=[{'AttributeName': 'image_id', 'AttributeType': 'S'}]
+    )
+    
+    return table
+
 def main():
     """Main function to set up all tables"""
     print("Setting up DynamoDB tables for Autonomous Shipping Truck Management Platform...")
@@ -241,6 +253,7 @@ def main():
         create_trucks_table(dynamodb)
         create_alerts_table(dynamodb)
         create_routes_table(dynamodb)
+        create_detections_table(dynamodb)
         
         print("All tables created and populated successfully!")
         
@@ -249,7 +262,7 @@ def main():
 
 
     # Sanity check: scan each table and print item count
-    for table_name in [DYNAMODB_USERS_TABLE, DYNAMODB_TRUCKS_TABLE, DYNAMODB_ALERTS_TABLE, DYNAMODB_ROUTES_TABLE]:
+    for table_name in [DYNAMODB_USERS_TABLE, DYNAMODB_TRUCKS_TABLE, DYNAMODB_ALERTS_TABLE, DYNAMODB_ROUTES_TABLE, DYNAMODB_DETECTIONS_TABLE]:
         table = dynamodb.Table(table_name)
         response = table.scan()
         print(f"\n[{table_name}] - Total items: {len(response['Items'])}")

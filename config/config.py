@@ -15,14 +15,15 @@ class Config:
     
     # AWS Settings
     AWS_REGION = 'us-east-2'
-    AWS_ACCESS_KEY = 'your-access-key'
-    AWS_SECRET_KEY = 'your-secret-key'
+    AWS_ACCESS_KEY = 'AKIAQQABDUVERYN7SE7B'
+    AWS_SECRET_KEY = 'xSRpxVgYTUQGwfptT8rrLZ0W8htPl3vHu365jt9R'
     
     # DynamoDB table names
     DYNAMODB_USERS_TABLE = 'ast-users'
     DYNAMODB_TRUCKS_TABLE = 'ast-trucks'
     DYNAMODB_ALERTS_TABLE = 'ast-alerts'
     DYNAMODB_ROUTES_TABLE = 'ast-routes'
+    DYNAMODB_DETECTIONS_TABLE = 'ast-detections'
     
     # S3 Bucket names
     S3_BUCKET_NAME = 'ast-data-bucket'

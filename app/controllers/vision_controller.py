@@ -9,7 +9,23 @@ import json
 from flask import current_app
 import numpy as np
 from PIL import Image, ImageDraw
-from app.utils.aws_utils import s3_upload_file, dynamodb_put_item
+from app.utils.aws_utils import s3_upload_file
+
+import os
+import cv2
+from datetime import datetime
+from collections import Counter
+from ultralytics import YOLO
+import boto3
+
+import logging
+from app.utils.aws_utils import (
+    dynamodb_get_item, 
+    dynamodb_put_item, 
+    dynamodb_update_item, 
+    dynamodb_delete_item,
+    dynamodb_scan
+)
 
 # Placeholder for a real computer vision model
 # In a production environment, this would be a proper ML model
@@ -68,6 +84,8 @@ class EmergencyDetectionModel:
 
 # Initialize the model once
 emergency_model = EmergencyDetectionModel()
+
+
 
 def process_image(image_data, truck_id=None):
     """
@@ -220,10 +238,100 @@ def get_recent_detections(limit=10):
     """
     # In a real implementation, this would query DynamoDB for recent detections
     # For now, return a placeholder
-    return [{
-        'detection_id': f"detection-{i}",
-        'timestamp': int(time.time()) - i * 60,  # One minute apart
-        'truck_id': f"truck-{i % 5}",
-        'is_emergency': i % 3 == 0,  # Every third detection is an emergency
-        'image_url': f"https://example.com/vision/detection-{i}.jpg"
-    } for i in range(limit)]
+    #process_vision_images()
+    detections_table = current_app.config.get('DYNAMODB_DETECTIONS_TABLE')
+
+    if not detections_table:
+        logging.error("DYNAMODB_DETECTIONS_TABLE is not set in config.")
+        return []
+
+    logging.info(f"Using table: {detections_table}")
+
+    try:
+        detections = dynamodb_scan(detections_table)
+        logging.info(f"Retrieved detections: {detections}")
+        return detections
+    except Exception as e:
+        logging.error(f"Error fetching all detections: {e}")
+        return []
+
+    # return [{
+    #     'detection_id': f"detection-{i}",
+    #     'timestamp': int(time.time()) - i * 60,  # One minute apart
+    #     'truck_id': f"truck-{i % 5}",
+    #     'is_emergency': i % 3 == 0,  # Every third detection is an emergency
+    #     'image_url': f"https://example.com/vision/detection-{i}.jpg"
+    # } for i in range(limit)]
+
+def process_vision_images(
+    dynamo_table_name='ast-detections',
+    s3_bucket='autonomous-truck-images',
+    s3_output_prefix='output/',
+    region='us-east-2'
+):
+    # === Paths setup ===
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # points to 'app/' level
+    image_dir = os.path.join(BASE_DIR, 'static', 'images')
+    #temp_output_dir = os.path.join(BASE_DIR, 'static', 'temp_output')
+    temp_output_dir = os.path.join(BASE_DIR, 'static', 'temp_output')
+    os.makedirs(temp_output_dir, exist_ok=True)
+
+    # === YOLO setup ===
+    model = YOLO('yolov8n.pt')
+    COCO_CLASSES = model.model.names
+
+    # === AWS setup ===
+    dynamodb = boto3.resource('dynamodb', region_name=region)
+    table = dynamodb.Table(dynamo_table_name)
+    s3 = boto3.client('s3', region_name=region)
+
+    # === Process each image ===
+    for filename in os.listdir(image_dir):
+        if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+            img_path = os.path.join(image_dir, filename)
+
+            # Run YOLO
+            results = model(img_path)
+
+            # Annotate and save to temp file
+            annotated_img = results[0].plot()
+            temp_path = os.path.join(temp_output_dir, filename)
+            print("Saving to:", temp_path)
+            cv2.imwrite(temp_path, annotated_img)
+
+            # Upload to S3
+            # s3_key = f'{s3_output_prefix}{filename}'
+            # s3.upload_file(
+            #     temp_path,
+            #     s3_bucket,
+            #     s3_key,
+            #     ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/jpeg'}
+            # )
+
+            #image_url = f'https://{s3_bucket}.s3.{region}.amazonaws.com/{s3_key}'
+
+            image_url = filename
+
+            # Count detections
+            class_ids = results[0].boxes.cls.tolist()
+            class_names = [COCO_CLASSES[int(cls)] for cls in class_ids]
+            count = Counter(class_names)
+
+            # Compose item
+            item = {
+                'image_id': str(uuid.uuid4()),
+                'image_name': filename,
+                'output_image_url': image_url,
+                'num_person': count.get('person', 0),
+                'num_car': count.get('car', 0),
+                'num_accidents': count.get('fire', 0) + count.get('truck', 0),
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+
+            # Save to DynamoDB
+            table.put_item(Item=item)
+
+            # Cleanup (optional)
+            os.remove(temp_path)
+
+            print(f"✅ Processed and uploaded: {filename}")

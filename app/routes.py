@@ -6,6 +6,9 @@ from app.controllers import truck_controller, alert_controller, route_controller
 import time
 import hashlib
 
+from flask import send_from_directory, Blueprint
+import os
+
 # Blueprint for main web routes
 main_blueprint = Blueprint('main', __name__)
 
@@ -181,6 +184,20 @@ def update_truck(truck_id):
 def delete_truck(truck_id):
     """Delete a truck"""
     return jsonify(truck_controller.delete_truck(truck_id))
+
+# Vision Management API
+@api_blueprint.route('/detections', methods=['GET'])
+def get_detections():
+    """Get all detections"""
+    return jsonify(vision_controller.get_recent_detections())
+
+image_blueprint = Blueprint('images', __name__)
+
+@image_blueprint.route('/images/<path:filename>')
+def serve_image(filename):
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    image_folder = os.path.join(base_dir, 'app/static/temp_output')
+    return send_from_directory(image_folder, filename)
 
 # Alert Management API
 @api_blueprint.route('/alerts', methods=['GET'])

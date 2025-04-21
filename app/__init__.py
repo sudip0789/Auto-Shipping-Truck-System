@@ -4,6 +4,7 @@ Autonomous Shipping Truck Management Platform - Application Package
 from flask import Flask
 from flask_cors import CORS
 from config.config import config_by_name
+from app.routes import image_blueprint
 
 def create_app(config_name='development'):
     """
@@ -15,7 +16,8 @@ def create_app(config_name='development'):
     Returns:
         Flask application instance
     """
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='static')
+    app.register_blueprint(image_blueprint)
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
     app.config.from_object(config_by_name[config_name])
     
