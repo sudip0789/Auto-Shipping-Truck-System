@@ -16,14 +16,15 @@ load_dotenv()
 
 # AWS Configuration
 AWS_REGION = 'us-east-2'
-AWS_ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY', 'your-access-key')
-AWS_SECRET_KEY = os.environ.get('AWS_SECRET_KEY', 'your-secret-key')
+AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
+AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
 
 # Table names
 DYNAMODB_USERS_TABLE = 'ast-users'
 DYNAMODB_TRUCKS_TABLE = 'ast-trucks'
 DYNAMODB_ALERTS_TABLE = 'ast-alerts'
 DYNAMODB_ROUTES_TABLE = 'ast-routes'
+
 
 def create_dynamodb_client():
     """Create and return a DynamoDB client"""
@@ -34,14 +35,15 @@ def create_dynamodb_client():
     )
     return session.resource('dynamodb')
 
+
 def create_table(dynamodb, table_name, key_schema, attribute_definitions):
     """Create a DynamoDB table if it doesn't exist"""
     existing_tables = [table.name for table in dynamodb.tables.all()]
-    
+
     if table_name in existing_tables:
         print(f"Table {table_name} already exists.")
         return dynamodb.Table(table_name)
-    
+
     print(f"Creating table {table_name}...")
     table = dynamodb.create_table(
         TableName=table_name,
@@ -52,15 +54,17 @@ def create_table(dynamodb, table_name, key_schema, attribute_definitions):
             'WriteCapacityUnits': 5
         }
     )
-    
+
     # Wait for table to be created
     table.meta.client.get_waiter('table_exists').wait(TableName=table_name)
     print(f"Table {table_name} created successfully.")
     return table
 
+
 def hash_password(password):
     """Create a simple hash of the password"""
     return hashlib.sha256(password.encode()).hexdigest()
+
 
 def create_users_table(dynamodb):
     """Create the users table"""
@@ -68,9 +72,10 @@ def create_users_table(dynamodb):
         dynamodb,
         DYNAMODB_USERS_TABLE,
         key_schema=[{'AttributeName': 'username', 'KeyType': 'HASH'}],
-        attribute_definitions=[{'AttributeName': 'username', 'AttributeType': 'S'}]
+        attribute_definitions=[
+            {'AttributeName': 'username', 'AttributeType': 'S'}]
     )
-    
+
     # Add sample users
     sample_users = [
         {
@@ -84,15 +89,16 @@ def create_users_table(dynamodb):
             'email': 'user@example.com'
         }
     ]
-    
+
     for user in sample_users:
         try:
             table.put_item(Item=user)
             print(f"Added user: {user['username']}")
         except Exception as e:
             print(f"Error adding user {user['username']}: {str(e)}")
-    
+
     return table
+
 
 def create_trucks_table(dynamodb):
     """Create the trucks table"""
@@ -100,9 +106,10 @@ def create_trucks_table(dynamodb):
         dynamodb,
         DYNAMODB_TRUCKS_TABLE,
         key_schema=[{'AttributeName': 'truck_id', 'KeyType': 'HASH'}],
-        attribute_definitions=[{'AttributeName': 'truck_id', 'AttributeType': 'S'}]
+        attribute_definitions=[
+            {'AttributeName': 'truck_id', 'AttributeType': 'S'}]
     )
-    
+
     # Add sample trucks
     sample_trucks = [
         {
@@ -127,15 +134,16 @@ def create_trucks_table(dynamodb):
             'status': 'idle'
         }
     ]
-    
+
     for truck in sample_trucks:
         try:
             table.put_item(Item=truck)
             print(f"Added truck: {truck['truck_name']}")
         except Exception as e:
             print(f"Error adding truck {truck['truck_name']}: {str(e)}")
-    
+
     return table
+
 
 def create_alerts_table(dynamodb):
     """Create the alerts table"""
@@ -143,9 +151,10 @@ def create_alerts_table(dynamodb):
         dynamodb,
         DYNAMODB_ALERTS_TABLE,
         key_schema=[{'AttributeName': 'alert_id', 'KeyType': 'HASH'}],
-        attribute_definitions=[{'AttributeName': 'alert_id', 'AttributeType': 'S'}]
+        attribute_definitions=[
+            {'AttributeName': 'alert_id', 'AttributeType': 'S'}]
     )
-    
+
     # Add sample alerts
     sample_alerts = [
         {
@@ -173,15 +182,16 @@ def create_alerts_table(dynamodb):
             'status': 'resolved'
         }
     ]
-    
+
     for alert in sample_alerts:
         try:
             table.put_item(Item=alert)
             print(f"Added alert: {alert['alert_type']} - {alert['message']}")
         except Exception as e:
             print(f"Error adding alert: {str(e)}")
-    
+
     return table
+
 
 def create_routes_table(dynamodb):
     """Create the routes table"""
@@ -189,9 +199,10 @@ def create_routes_table(dynamodb):
         dynamodb,
         DYNAMODB_ROUTES_TABLE,
         key_schema=[{'AttributeName': 'route_id', 'KeyType': 'HASH'}],
-        attribute_definitions=[{'AttributeName': 'route_id', 'AttributeType': 'S'}]
+        attribute_definitions=[
+            {'AttributeName': 'route_id', 'AttributeType': 'S'}]
     )
-    
+
     # Add sample routes
     sample_routes = [
         {
@@ -219,34 +230,35 @@ def create_routes_table(dynamodb):
             'status': 'completed'
         }
     ]
-    
+
     for route in sample_routes:
         try:
             table.put_item(Item=route)
-            print(f"Added route: {route['start_location']} to {route['end_location']}")
+            print(
+                f"Added route: {route['start_location']} to {route['end_location']}")
         except Exception as e:
             print(f"Error adding route: {str(e)}")
-    
+
     return table
+
 
 def main():
     """Main function to set up all tables"""
     print("Setting up DynamoDB tables for Autonomous Shipping Truck Management Platform...")
-    
+
     try:
         dynamodb = create_dynamodb_client()
-        
+
         # Create tables
         create_users_table(dynamodb)
         create_trucks_table(dynamodb)
         create_alerts_table(dynamodb)
         create_routes_table(dynamodb)
-        
+
         print("All tables created and populated successfully!")
-        
+
     except Exception as e:
         print(f"Error setting up tables: {str(e)}")
-
 
     # Sanity check: scan each table and print item count
     for table_name in [DYNAMODB_USERS_TABLE, DYNAMODB_TRUCKS_TABLE, DYNAMODB_ALERTS_TABLE, DYNAMODB_ROUTES_TABLE]:
