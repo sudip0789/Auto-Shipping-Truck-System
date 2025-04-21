@@ -11,6 +11,10 @@ const Monitoring = () => {
   // Refresh interval in milliseconds
   const refreshInterval = 30000; // 30 seconds
 
+  // Add simulation state
+  const [simulating, setSimulating] = useState(false);
+  const [simulationId, setSimulationId] = useState(null);
+
   useEffect(() => {
     // Initial data fetch
     fetchTrucksAndTelemetry();
@@ -79,6 +83,50 @@ const Monitoring = () => {
     
     return <span className={`badge ${badgeClass}`}>{status || 'Unknown'}</span>;
   };
+
+    // Start CARLA simulation with selected trucks
+  const startSimulation = async () => {
+    try {
+      setSimulating(true);
+      
+      // Get selected truck IDs (for demo, using all trucks)
+      const truckIds = trucks.map(truck => truck.truck_id);
+      
+      // Call API to start simulation
+      const response = await api.post('/simulation/start', {
+        truck_ids: truckIds,
+        map: 'Town01',
+        duration: 3600  // 1 hour simulation
+      });
+      
+      setSimulationId(response.data.simulation_id);
+      
+      // Refresh truck telemetry to get simulation data
+      setTimeout(fetchTrucksAndTelemetry, 5000);
+      
+      setSimulating(false);
+    } catch (err) {
+      console.error('Error starting simulation:', err);
+      setError('Failed to start simulation. Please try again.');
+      setSimulating(false);
+    }
+  };
+
+    // Stop current simulation
+  const stopSimulation = async () => {
+    if (!simulationId) return;
+    
+    try {
+      setSimulating(true);
+      await api.post('/simulation/stop', { simulation_id: simulationId });
+      setSimulationId(null);
+      setTimeout(fetchTrucksAndTelemetry, 2000);
+      setSimulating(false);
+    } catch (err) {
+      console.error('Error stopping simulation:', err);
+      setSimulating(false);
+    }
+  };
   
   if (loading && trucks.length === 0) {
     return (
@@ -107,6 +155,41 @@ const Monitoring = () => {
           >
             <i className="fas fa-sync-alt me-2"></i> Refresh Data
           </button>
+                    {!simulationId ? (
+            <button 
+              className="btn btn-success" 
+              onClick={startSimulation}
+              disabled={simulating || trucks.length === 0}
+            >
+              {simulating ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-play-circle me-2"></i> Start Simulation
+                </>
+              )}
+            </button>
+          ) : (
+            <button 
+              className="btn btn-danger" 
+              onClick={stopSimulation}
+              disabled={simulating}
+            >
+              {simulating ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Stopping...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-stop-circle me-2"></i> Stop Simulation
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
       

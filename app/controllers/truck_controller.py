@@ -240,9 +240,36 @@ def delete_truck(truck_id):
         return {'error': str(e)}
 
 
+# def get_truck_location(truck_id):
+#     """
+#     Get the current location of a truck
+
+#     Args:
+#         truck_id (str): ID of the truck
+
+#     Returns:
+#         dict: Location information including coordinates
+#     """
+#     truck = get_truck(truck_id)
+#     if not truck:
+#         return {'error': f'Truck {truck_id} not found'}
+
+#     # In a real system, this would fetch real-time location data
+#     # For now, we'll return the stored location or a simulated one
+#     location = {
+#         'truck_id': truck_id,
+#         'latitude': truck.get('latitude', 0),
+#         'longitude': truck.get('longitude', 0),
+#         'speed': truck.get('speed', 0),
+#         'heading': truck.get('heading', 0),
+#         'timestamp': int(time.time())
+#     }
+
+#     return location
+
 def get_truck_location(truck_id):
     """
-    Get the current location of a truck
+    Get the current location of a truck from CARLA if in simulation, or from database
 
     Args:
         truck_id (str): ID of the truck
@@ -250,22 +277,49 @@ def get_truck_location(truck_id):
     Returns:
         dict: Location information including coordinates
     """
+    from app.controllers.simulation_controller import simulations
+
     truck = get_truck(truck_id)
     if not truck:
         return {'error': f'Truck {truck_id} not found'}
 
-    # In a real system, this would fetch real-time location data
-    # For now, we'll return the stored location or a simulated one
-    location = {
+    # Check if this truck is in any active simulation
+    for sim_id, sim_data in simulations.items():
+        if (sim_data['status'] == 'running' and
+                'vehicles' in sim_data and truck_id in sim_data['vehicles']):
+            try:
+                # Get vehicle from simulation
+                carla_vehicle = sim_data['vehicles'][truck_id]
+
+                # Get transform and velocity
+                transform = carla_vehicle.get_transform()
+                velocity = carla_vehicle.get_velocity()
+
+                # Calculate speed in km/h
+                speed = 3.6 * (velocity.x**2 + velocity.y **
+                               2 + velocity.z**2)**0.5
+
+                return {
+                    'truck_id': truck_id,
+                    'latitude': transform.location.y,
+                    'longitude': transform.location.x,
+                    'speed': speed,
+                    'heading': transform.rotation.yaw,
+                    'timestamp': int(time.time())
+                }
+            except Exception as e:
+                logging.error(
+                    f"Error getting CARLA location for {truck_id}: {str(e)}")
+
+    # Fall back to database values if truck isn't in simulation or error occurred
+    return {
         'truck_id': truck_id,
         'latitude': truck.get('latitude', 0),
         'longitude': truck.get('longitude', 0),
         'speed': truck.get('speed', 0),
         'heading': truck.get('heading', 0),
-        'timestamp': int(time.time())
+        'timestamp': truck.get('timestamp', int(time.time()))
     }
-
-    return location
 
 
 def get_truck_status(truck_id):
